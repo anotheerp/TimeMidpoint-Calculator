@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>旅行灵感 - 寻找完美中点</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .station-label { 
+    font-size: 10px; 
+    fill: #333; 
+    pointer-events: none; 
+    /* 新增下面这两行，给文字加白边 */
+    stroke: rgba(255,255,255,0.8); 
+    stroke-width: 3px; 
+    paint-order: stroke; 
+}
+        body { font-family: 'PingFang SC', sans-serif; background: #f5f7fa; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 20px; z-index: 10; display: flex; gap: 15px; align-items: center; }
+        input, button { padding: 10px; border-radius: 6px; border: 1px solid #ccc; outline: none; }
+        button { background: #007aff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        button:hover { background: #005bb5; }
+        #map-container { width: 90vw; height: 80vh; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; position: relative;}
+        /* 地铁线和站点的样式 */
+        .subway-line { fill: none; stroke-width: 4px; stroke-linejoin: round; stroke-linecap: round; }
+        .station-node { fill: white; stroke-width: 2px; cursor: pointer; transition: 0.2s;}
+        .station-node:hover { r: 6; }
+        .station-label { font-size: 10px; fill: #666; pointer-events: none; }
+        /* 汇合点特效 */
+        .highlight-midpoint { fill: #ffcc00; stroke: #ff3b30; stroke-width: 3px; r: 8; animation: pulse 1.5s infinite; }
+        .highlight-start { fill: #007aff; stroke: #001f3f; stroke-width: 3px; r: 6;}
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); } }
+    </style>
+</head>
+<body>
+
+<div class="control-panel">
+        <input type="text" id="startA" placeholder="起点A (如: 良渚)">
+        <input type="text" id="startB" placeholder="起点B (如: 湘湖)">
+        
+        <div style="display: flex; flex-direction: column; align-items: center; margin: 0 10px;">
+            <label for="tolerance" style="font-size: 12px; color: #666;">时间误差: <span id="tol-val">5</span> 分钟</label>
+            <input type="range" id="tolerance" min="0" max="20" value="5" oninput="document.getElementById('tol-val').innerText = this.value">
+        </div>
+
+        <button onclick="findMidpoint()">寻找中点</button>
+        <span id="result-text" style="color:#666; font-size:14px; margin-left: 10px;"></span>
+    </div>
+
+    <div id="map-container"></div>
+
+    <script>
+        const width = document.getElementById('map-container').clientWidth;
+        const height = document.getElementById('map-container').clientHeight;
+        const svg = d3.select("#map-container").append("svg").attr("width", width).attr("height", height);
+        
+        // 添加一个可缩放拖拽的图层
+        const g = svg.append("g");
+        svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", (event) => { g.attr("transform", event.transform); }));
+
+        // 这是一个将真实的经纬度，映射到屏幕 X/Y 像素的转换器
+        // 120.15, 30.28 大概是杭州市中心的坐标
+        const projection = d3.geoMercator().center([120.15, 30.28]).scale(200000).translate([width / 2, height / 2]);
+
+        // 1. 获取本地的 JSON 数据并画图
+        fetch('/data/hangzhou_subway.json')
+            .then(res => res.json())
+            .then(data => {
+                // 画连线
+                data.l.forEach(line => {
+                    const color = line.cl ? `#${line.cl}` : "#999"; // 高德数据里自带了地铁线的颜色
+                    const pathData = line.st.map(station => {
+                        const coords = station.sl.split(',').map(Number);
+                        return projection(coords);
+                    });
+                    
+                    const lineGenerator = d3.line().x(d => d[0]).y(d => d[1]);
+                    g.append("path")
+                        .datum(pathData)
+                        .attr("class", "subway-line")
+                        .attr("d", lineGenerator)
+                        .attr("stroke", color);
+                });
+
+                // 画站点圆圈和文字
+                data.l.forEach(line => {
+                    const color = line.cl ? `#${line.cl}` : "#999";
+                    line.st.forEach(station => {
+                        const coords = station.sl.split(',').map(Number);
+                        const [x, y] = projection(coords);
+                        
+                        // 画圆
+                        g.append("circle")
+                            .attr("cx", x).attr("cy", y).attr("r", 3)
+                            .attr("class", "station-node")
+                            .attr("stroke", color)
+                            .attr("id", "node-" + station.n); // 给每个站点起个ID，方便后面高亮
+                        
+                        // 画名字
+                        g.append("text")
+                            .attr("x", x + 6).attr("y", y + 3)
+                            .attr("class", "station-label")
+                            .text(station.n);
+                    });
+                });
+            });
+
+        // 2. 点击按钮后，向 Python 后台请求中点数据
+        function findMidpoint() {
+            const startA = document.getElementById("startA").value.trim();
+            const startB = document.getElementById("startB").value.trim();
+            if(!startA || !startB) return alert("请输入两个站名！");
+
+            // 清除之前的高亮状态
+            d3.selectAll(".station-node").classed("highlight-midpoint", false).classed("highlight-start", false);
+
+            // 标记起点
+            d3.select("#node-" + startA).classed("highlight-start", true);
+            d3.select("#node-" + startB).classed("highlight-start", true);
+
+            document.getElementById("result-text").innerText = "计算中...";
+
+            // 调用你的 Python API
+            fetch(`/api/midpoint?station_a=${startA}&station_b=${startB}&tolerance=5`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) {
+                        document.getElementById("result-text").innerText = data.error;
+                        return;
+                    }
+                    
+                    const midpoints = data.data;
+                    if(midpoints.length === 0) {
+                        document.getElementById("result-text").innerText = "在这个时间误差内没找到合适的中点";
+                        return;
+                    }
+
+                    // 成功找到！在前端高亮它们
+                    midpoints.forEach(point => {
+                        d3.select("#node-" + point.station).classed("highlight-midpoint", true);
+                    });
+
+                    // 界面显示第一个最优解
+                    document.getElementById("result-text").innerText = 
+                        `最佳中点: ${midpoints[0].station} (A耗时${midpoints[0].time_a}分, B耗时${midpoints[0].time_b}分)`;
+                });
+        }
+    </script>
+</body>
+</html>

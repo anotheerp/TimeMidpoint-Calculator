@@ -1,150 +1,687 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <title>旅行灵感 - 寻找完美中点</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-        .station-label { 
-    font-size: 10px; 
-    fill: #333; 
-    pointer-events: none; 
-    /* 新增下面这两行，给文字加白边 */
-    stroke: rgba(255,255,255,0.8); 
-    stroke-width: 3px; 
-    paint-order: stroke; 
-}
-        body { font-family: 'PingFang SC', sans-serif; background: #f5f7fa; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 20px; z-index: 10; display: flex; gap: 15px; align-items: center; }
-        input, button { padding: 10px; border-radius: 6px; border: 1px solid #ccc; outline: none; }
-        button { background: #007aff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;}
-        button:hover { background: #005bb5; }
-        #map-container { width: 90vw; height: 80vh; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; position: relative;}
-        /* 地铁线和站点的样式 */
-        .subway-line { fill: none; stroke-width: 4px; stroke-linejoin: round; stroke-linecap: round; }
-        .station-node { fill: white; stroke-width: 2px; cursor: pointer; transition: 0.2s;}
-        .station-node:hover { r: 6; }
-        .station-label { font-size: 10px; fill: #666; pointer-events: none; }
-        /* 汇合点特效 */
-        .highlight-midpoint { fill: #ffcc00; stroke: #ff3b30; stroke-width: 3px; r: 8; animation: pulse 1.5s infinite; }
-        .highlight-start { fill: #007aff; stroke: #001f3f; stroke-width: 3px; r: 6;}
-        
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); } }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>杭州地铁 · 寻找完美中点</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    :root {
+        --ink: #1b2431;
+        --muted: #6f7d90;
+        --line: #e6eaf0;
+        --brand: #0a84ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        margin: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        color: var(--ink);
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+        background: #eef1f6;
+    }
+
+    /* ---------- 顶部控制栏 ---------- */
+    .topbar {
+        margin: 14px 16px 0;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(12px);
+        border-radius: 14px;
+        box-shadow: 0 6px 22px rgba(23, 43, 77, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        z-index: 5;
+    }
+    .brand { display: flex; flex-direction: column; margin-right: 4px; }
+    .brand b { font-size: 15px; letter-spacing: .3px; }
+    .brand span { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    input[type="text"] {
+        width: 148px; padding: 9px 12px; font-size: 13px;
+        font-family: inherit; color: var(--ink);
+        border: 1px solid var(--line); border-radius: 9px; outline: none;
+        background: #f7f9fc; transition: .18s;
+    }
+    input[type="text"]:focus {
+        background: #fff; border-color: #9cc8ff;
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, .12);
+    }
+    .tol { display: flex; flex-direction: column; gap: 3px; }
+    .tol label { font-size: 11px; color: var(--muted); }
+    .tol label b { color: #0a6cff; }
+    input[type="range"] { width: 150px; accent-color: var(--brand); margin: 0; }
+
+    .btn {
+        padding: 9px 18px; font-size: 13px; font-weight: 600; font-family: inherit;
+        color: #fff; cursor: pointer; border: none; border-radius: 9px;
+        background: linear-gradient(135deg, #0a84ff, #0060df);
+        box-shadow: 0 4px 12px rgba(10, 132, 255, .28);
+        transition: .18s;
+    }
+    .btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    #result { font-size: 12.5px; color: var(--muted); }
+    #result b { color: #0a6cff; }
+
+    /* ---------- 地图画布 ---------- */
+    #map-container {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 14px 16px 16px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(23, 43, 77, .09);
+        overflow: hidden;
+    }
+    #map-container svg { display: block; width: 100%; height: 100%; cursor: grab; }
+    #map-container svg:active { cursor: grabbing; }
+
+    .route { fill: none; }
+    .transfer { pointer-events: none; transform-box: fill-box; transform-origin: center; transition: transform .22s cubic-bezier(.34, 1.5, .64, 1); }
+    .transfer.hovered { transform: scale(2.76); }
+    .station { fill: #fff; pointer-events: none; }
+    .hl-start { fill: #0a84ff; stroke: #fff; stroke-width: 2.6px; }
+    .hl-mid { fill: #ffcc00; stroke: #ff3b30; stroke-width: 2.5px; }
+    .hl-halo { fill: rgba(255, 186, 0, .26); stroke: rgba(255, 150, 0, .55); stroke-width: 1.2px; animation: halo 2.2s ease-in-out infinite; }
+    @keyframes halo {
+        0%, 100% { opacity: .75; }
+        50%      { opacity: 1; }
+    }
+
+    .label {
+        fill: #46546a; pointer-events: none; user-select: none;
+        paint-order: stroke; stroke: #fff; stroke-linejoin: round;
+    }
+    .label.interchange { fill: #1f2c3d; font-weight: 700; }
+    .tip {
+        font-weight: 700; fill: #101a26; pointer-events: none;
+        paint-order: stroke; stroke: #fff; stroke-width: 4.2px; stroke-linejoin: round;
+    }
+
+    /* ---------- 覆盖层 ---------- */
+    .legend {
+        position: absolute; right: 14px; bottom: 14px;
+        background: rgba(255, 255, 255, .93);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--line); border-radius: 12px;
+        padding: 10px 12px;
+        display: grid; grid-template-columns: repeat(2, minmax(74px, auto));
+        gap: 5px 16px;
+        font-size: 11px; color: #41506a;
+        box-shadow: 0 6px 18px rgba(23, 43, 77, .08);
+        max-height: 44%; overflow: auto;
+    }
+    .legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+
+    .loading {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: rgba(255, 255, 255, .86); font-size: 13px; color: var(--muted);
+        transition: opacity .35s; z-index: 3;
+    }
+    .loading.hide { opacity: 0; pointer-events: none; }
+
+    .zoombox {
+        position: absolute; right: 14px; top: 14px;
+        display: flex; flex-direction: column;
+        border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+        background: rgba(255, 255, 255, .94);
+        box-shadow: 0 4px 12px rgba(23, 43, 77, .07);
+    }
+    .zoombox button {
+        width: 30px; height: 30px; border: none; background: transparent;
+        color: #56657c; font-size: 16px; line-height: 1; cursor: pointer;
+        transition: .15s; font-family: inherit;
+    }
+    .zoombox button + button { border-top: 1px solid var(--line); }
+    .zoombox button:hover { color: var(--brand); background: #f2f7ff; }
+</style>
 </head>
 <body>
 
-<div class="control-panel">
-        <input type="text" id="startA" placeholder="起点A (如: 良渚)">
-        <input type="text" id="startB" placeholder="起点B (如: 湘湖)">
-        
-        <div style="display: flex; flex-direction: column; align-items: center; margin: 0 10px;">
-            <label for="tolerance" style="font-size: 12px; color: #666;">时间误差: <span id="tol-val">5</span> 分钟</label>
-            <input type="range" id="tolerance" min="0" max="20" value="5" oninput="document.getElementById('tol-val').innerText = this.value">
-        </div>
-
-        <button onclick="findMidpoint()">寻找中点</button>
-        <span id="result-text" style="color:#666; font-size:14px; margin-left: 10px;"></span>
+<div class="topbar">
+    <div class="brand">
+        <b>杭州地铁 · 中点</b>
     </div>
+    <input type="text" id="startA" placeholder="起点 A" />
+    <input type="text" id="startB" placeholder="起点 B" />
+    <div class="tol">
+        <label for="tolerance">时间误差 <b id="tol-val">5</b> 分钟</label>
+        <input type="range" id="tolerance" min="0" max="20" value="5" />
+    </div>
+    <button class="btn" id="btn-find">寻找中点</button>
+    <div id="result"></div>
+</div>
 
-    <div id="map-container"></div>
+<div id="map-container">
+    <div class="loading" id="loading">正在生成线网图…</div>
+    <div class="legend" id="legend"></div>
+    <div class="zoombox">
+        <button id="btn-zoom-in" title="放大">+</button>
+        <button id="btn-zoom-out" title="缩小">&minus;</button>
+        <button id="btn-fit" title="查看全图">&#10530;</button>
+        <button id="btn-reset" title="重置视图">&#8634;</button>
+    </div>
+</div>
 
-    <script>
-        const width = document.getElementById('map-container').clientWidth;
-        const height = document.getElementById('map-container').clientHeight;
-        const svg = d3.select("#map-container").append("svg").attr("width", width).attr("height", height);
-        
-        // 添加一个可缩放拖拽的图层
-        const g = svg.append("g");
-        svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", (event) => { g.attr("transform", event.transform); }));
+<script>
+/* =====================================================================
+   杭州地铁线网图 —— 仿高德地图线路图风格
+   1) 数据按站名合并，换乘站只保留一个节点
+   2) 站点按真实经纬度投影，线路用平滑曲线穿过每一站，保留真实走向
+   3) 普通站为小圆点、换乘站为白底灰环，站名统一排在站点右上方并自动避让
+   ===================================================================== */
 
-        // 这是一个将真实的经纬度，映射到屏幕 X/Y 像素的转换器
-        // 120.15, 30.28 大概是杭州市中心的坐标
-        const projection = d3.geoMercator().center([120.15, 30.28]).scale(200000).translate([width / 2, height / 2]);
+const DATA_URL = '/data/hangzhou_subway_drw.json';
+const TRANSFER_ICON = '/data/transfer.png';
+const container = document.getElementById('map-container');
+const loadingEl = document.getElementById('loading');
 
-        // 1. 获取本地的 JSON 数据并画图
-        fetch('/data/hangzhou_subway.json')
-            .then(res => res.json())
-            .then(data => {
-                // 画连线
-                data.l.forEach(line => {
-                    const color = line.cl ? `#${line.cl}` : "#999"; // 高德数据里自带了地铁线的颜色
-                    const pathData = line.st.map(station => {
-                        const coords = station.sl.split(',').map(Number);
-                        return projection(coords);
-                    });
-                    
-                    const lineGenerator = d3.line().x(d => d[0]).y(d => d[1]);
-                    g.append("path")
-                        .datum(pathData)
-                        .attr("class", "subway-line")
-                        .attr("d", lineGenerator)
-                        .attr("stroke", color);
-                });
+const svg = d3.select(container).insert('svg', ':first-child');
+const gRoot = svg.append('g');
+const gRoutes = gRoot.append('g').attr('class', 'routes');
+const gStations = gRoot.append('g').attr('class', 'stations');
+const gHit = gRoot.append('g').attr('class', 'hit-area');
+const gHighlight = gRoot.append('g').attr('class', 'highlight');
+const gLabels = gRoot.append('g').attr('class', 'labels');
+const gHover = gRoot.append('g').attr('class', 'hover');
 
-                // 画站点圆圈和文字
-                data.l.forEach(line => {
-                    const color = line.cl ? `#${line.cl}` : "#999";
-                    line.st.forEach(station => {
-                        const coords = station.sl.split(',').map(Number);
-                        const [x, y] = projection(coords);
-                        
-                        // 画圆
-                        g.append("circle")
-                            .attr("cx", x).attr("cy", y).attr("r", 3)
-                            .attr("class", "station-node")
-                            .attr("stroke", color)
-                            .attr("id", "node-" + station.n); // 给每个站点起个ID，方便后面高亮
-                        
-                        // 画名字
-                        g.append("text")
-                            .attr("x", x + 6).attr("y", y + 3)
-                            .attr("class", "station-label")
-                            .text(station.n);
-                    });
-                });
-            });
+const zoom = d3.zoom().scaleExtent([0.14, 2.5]).on('zoom', ev => gRoot.attr('transform', ev.transform));
+svg.call(zoom);
 
-        // 2. 点击按钮后，向 Python 后台请求中点数据
-        function findMidpoint() {
-            const startA = document.getElementById("startA").value.trim();
-            const startB = document.getElementById("startB").value.trim();
-            if(!startA || !startB) return alert("请输入两个站名！");
+let MODEL = null;          // 线网模型
+let stationData = [];      // 当前渲染的站点数据（供高亮使用）
+let labelBoxes = [];       // 常驻站名占位，供悬停站名避让
+let highlight = { a: null, b: null, mids: new Set() };
 
-            // 清除之前的高亮状态
-            d3.selectAll(".station-node").classed("highlight-midpoint", false).classed("highlight-start", false);
+/* ---------------- 1. 构建模型（高德绘制数据：已排版坐标 + 线路路径点） ---------------- */
+function buildModel(raw) {
+    const routes = [];
+    const byName = new Map();
 
-            // 标记起点
-            d3.select("#node-" + startA).classed("highlight-start", true);
-            d3.select("#node-" + startB).classed("highlight-start", true);
+    raw.l.forEach(line => {
+        const color = line.cl ? '#' + line.cl : '#8d96a6';
+        const name = line.ln || '线路';
 
-            document.getElementById("result-text").innerText = "计算中...";
+        const segments = (line.f || []).map(seg =>
+            (seg.c || []).map(pt => {
+                const [x, y] = String(pt).trim().split(/\s+/).map(Number);
+                return [x, y];
+            })
+        ).filter(seg => seg.length > 1);
 
-            // 调用你的 Python API
-            fetch(`/api/midpoint?station_a=${startA}&station_b=${startB}&tolerance=5`)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.error) {
-                        document.getElementById("result-text").innerText = data.error;
-                        return;
-                    }
-                    
-                    const midpoints = data.data;
-                    if(midpoints.length === 0) {
-                        document.getElementById("result-text").innerText = "在这个时间误差内没找到合适的中点";
-                        return;
-                    }
+        routes.push({ color, name, segments });
 
-                    // 成功找到！在前端高亮它们
-                    midpoints.forEach(point => {
-                        d3.select("#node-" + point.station).classed("highlight-midpoint", true);
-                    });
+        (line.st || []).forEach(st => {
+            const [x, y] = String(st.p).trim().split(/\s+/).map(Number);
+            let node = byName.get(st.n);
+            if (!node) {
+                node = { id: st.n, x, y, colors: new Set() };
+                byName.set(st.n, node);
+            }
+            node.colors.add(color);
+        });
+    });
 
-                    // 界面显示第一个最优解
-                    document.getElementById("result-text").innerText = 
-                        `最佳中点: ${midpoints[0].station} (A耗时${midpoints[0].time_a}分, B耗时${midpoints[0].time_b}分)`;
-                });
+    const nodes = [...byName.values()];
+    const index = new Map(nodes.map(n => [n.id, n]));
+
+    const box = {
+        x0: d3.min(nodes, n => n.x), x1: d3.max(nodes, n => n.x),
+        y0: d3.min(nodes, n => n.y), y1: d3.max(nodes, n => n.y)
+    };
+
+    const focus = index.get('武林广场') || {
+        x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2
+    };
+
+    return { nodes, routes, index, box, focus };
+}
+
+/* ---------------- 5. 标签避让 ---------------- */
+function textWidth(str, fs) {
+    let w = 0;
+    for (const ch of str) w += ch.codePointAt(0) > 0x2e80 ? fs : fs * 0.56;
+    return w;
+}
+
+function labelBox(c, w, fs) {
+    const pad = 1.6;
+    const h = fs + 2;
+    let x0;
+    if (c.anchor === 'start') x0 = c.x;
+    else if (c.anchor === 'end') x0 = c.x - w;
+    else x0 = c.x - w / 2;
+    return { x0: x0 - pad, y0: c.y - h / 2 - pad, x1: x0 + w + pad, y1: c.y + h / 2 + pad };
+}
+
+function overlapArea(a, b) {
+    const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+    const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    return w > 0 && h > 0 ? w * h : 0;
+}
+
+function buildLabels(stations, showAll) {
+    const placed = [];
+    const out = [];
+
+    // 换乘站优先占位
+    const ordered = stations.slice().sort((p, q) => (q.n.colors.size - p.n.colors.size));
+
+    ordered.forEach(st => {
+        const inter = st.n.colors.size > 1;
+        if (!showAll && !inter) return;
+
+        const fs = 13;
+        const w = textWidth(st.n.id, fs);
+
+        // 官方图默认把站名排在站点右下方
+        const cands = [
+            { x: st.x + 10, y: st.y + 1, anchor: 'start' },
+            { x: st.x - 9, y: st.y + 1, anchor: 'end' },
+            { x: st.x + 10, y: st.y - 12, anchor: 'start' },
+            { x: st.x - 9, y: st.y - 12, anchor: 'end' },
+            { x: st.x, y: st.y - 15, anchor: 'middle' },
+            { x: st.x, y: st.y + 15, anchor: 'middle' }
+        ];
+
+        let chosen = null, bestArea = Infinity;
+        for (const c of cands) {
+            const box = labelBox(c, w, fs);
+            let area = 0;
+            for (const b of placed) area += overlapArea(b, box);
+            if (area === 0) { chosen = { c, box }; bestArea = 0; break; }
+            if (area < bestArea) { bestArea = area; chosen = { c, box }; }
         }
-    </script>
+        if (!chosen || (!inter && bestArea > 0)) return;
+
+        placed.push(chosen.box);
+        out.push({
+            id: st.n.id, x: chosen.c.x, y: chosen.c.y, anchor: chosen.c.anchor,
+            fs, sw: 2.4, inter, box: chosen.box
+        });
+    });
+
+    return out;
+}
+
+/* ---------------- 6. 渲染（1:1 官方坐标，靠 zoom 平移缩放） ---------------- */
+const ST_R = 6;          // 普通站半径（官方 3px，这里放大一倍便于点击）
+const TR_ICON = 18;      // 换乘站图标尺寸（官方 18px）
+
+function render() {
+    if (!MODEL) return;
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    svg.attr('width', W).attr('height', H);
+
+    const { nodes, routes } = MODEL;
+
+    /* --- 线路：直接用官方路径点 --- */
+    const paths = [];
+    routes.forEach(r => r.segments.forEach(seg => {
+        paths.push({ color: r.color, d: 'M' + seg.map(pt => pt[0] + ',' + pt[1]).join('L') });
+    }));
+
+    gRoutes.selectAll('path.route')
+        .data(paths)
+        .join('path')
+        .attr('class', 'route')
+        .attr('d', d => d.d)
+        .attr('stroke', d => d.color)
+        .attr('stroke-width', 5)
+        .attr('stroke-linecap', 'butt')
+        .attr('stroke-linejoin', 'miter')
+        .attr('fill', 'none');
+
+    /* --- 站点 --- */
+    stationData = nodes.map(n => ({
+        n, x: n.x, y: n.y, inter: n.colors.size > 1, color: [...n.colors][0]
+    }));
+
+    gStations.selectAll('circle.station')
+        .data(stationData.filter(d => !d.inter), d => d.n.id)
+        .join('circle')
+        .attr('class', 'station')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', ST_R)
+        .attr('fill', '#fff')
+        .attr('stroke', '#000')
+        .attr('stroke-width', 1.4);
+
+    // 换乘站用官方图标
+    gStations.selectAll('image.transfer')
+        .data(stationData.filter(d => d.inter), d => d.n.id)
+        .join('image')
+        .attr('class', 'transfer')
+        .attr('href', TRANSFER_ICON)
+        .attr('x', d => d.x - TR_ICON / 2)
+        .attr('y', d => d.y - TR_ICON / 2)
+        .attr('width', TR_ICON)
+        .attr('height', TR_ICON);
+
+    /* --- 透明命中层：鼠标触发范围比圆点更大 --- */
+    gHit.selectAll('circle.hit')
+        .data(stationData, d => d.n.id)
+        .join('circle')
+        .attr('class', 'hit')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', d => d.inter ? 16 : 13)
+        .attr('fill', 'transparent')
+        .attr('cursor', 'pointer')
+        .on('mouseenter', (ev, d) => onStationEnter(d))
+        .on('mouseleave', (ev, d) => onStationLeave(d));
+
+    /* --- 站名 --- */
+    const labels = buildLabels(stationData, true);
+
+    gLabels.selectAll('text.label')
+        .data(labels, d => d.id)
+        .join('text')
+        .attr('class', d => 'label' + (d.inter ? ' interchange' : ''))
+        .attr('x', d => d.x)
+        .attr('y', d => d.y)
+        .attr('text-anchor', d => d.anchor)
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', d => d.fs)
+        .attr('stroke-width', d => d.sw)
+        .text(d => d.id);
+
+    labelBoxes = labels.map(l => ({ id: l.id, box: l.box }));
+    gHover.selectAll('text.tip').interrupt('tip').remove();
+    applyHighlights();
+}
+
+/* ---------------- 7. 悬停：站点放大 + 站名放大 ---------------- */
+function onStationEnter(d) {
+    if (d.inter) {
+        gStations.selectAll('image.transfer')
+            .filter(s => s.n.id === d.n.id)
+            .classed('hovered', true);
+    } else {
+        gStations.selectAll('circle.station')
+            .filter(s => s.n.id === d.n.id)
+            .interrupt('hover')
+            .transition('hover').duration(200).ease(d3.easeCubicOut)
+            .attr('r', ST_R + 7.2)
+            .attr('stroke-width', 2.4);
+    }
+    showTip(d);
+}
+
+function onStationLeave(d) {
+    if (d.inter) {
+        gStations.selectAll('image.transfer')
+            .filter(s => s.n.id === d.n.id)
+            .classed('hovered', false);
+    } else {
+        gStations.selectAll('circle.station')
+            .filter(s => s.n.id === d.n.id)
+            .interrupt('hover')
+            .transition('hover').duration(240).ease(d3.easeCubicOut)
+            .attr('r', ST_R)
+            .attr('stroke-width', 1.4);
+    }
+    hideTip();
+}
+
+function showTip(d) {
+    // 该站原本的常驻站名先柔和淡出，避免和放大后的提示叠字
+    gLabels.selectAll('text.label')
+        .filter(l => l.id === d.n.id)
+        .interrupt()
+        .transition()
+        .duration(90)
+        .style('opacity', 0);
+
+    const fs = 24;
+    const w = textWidth(d.n.id, fs);
+    const W = container.clientWidth;
+    // 换乘站图标放大后半径更大，文字要躲开
+    const gx = d.inter ? 30 : 16;
+    const gy = d.inter ? 20 : 17;
+    const cands = [
+        { x: d.x + gx, y: d.y, anchor: 'start' },
+        { x: d.x - gx, y: d.y, anchor: 'end' },
+        { x: d.x, y: d.y - gy - 6, anchor: 'middle' },
+        { x: d.x, y: d.y + gy + 6, anchor: 'middle' },
+        { x: d.x + gx, y: d.y - gy, anchor: 'start' },
+        { x: d.x + gx, y: d.y + gy, anchor: 'start' },
+        { x: d.x - gx, y: d.y - gy, anchor: 'end' },
+        { x: d.x - gx, y: d.y + gy, anchor: 'end' }
+    ];
+    if (d.x > W - 130) cands.unshift(cands.splice(1, 1)[0]);   // 靠右边缘时优先放左侧
+
+    let best = cands[0], bestArea = Infinity;
+    for (const c of cands) {
+        const box = labelBox(c, w, fs);
+        let area = 0;
+        for (const b of labelBoxes) {
+            if (b.id === d.n.id) continue;
+            area += overlapArea(b.box, box);
+        }
+        if (area === 0) { best = c; break; }
+        if (area < bestArea) { bestArea = area; best = c; }
+    }
+
+    const sel = gHover.selectAll('text.tip').data([d]);
+    sel.exit().remove();
+
+    const enter = sel.enter()
+        .append('text')
+        .attr('class', 'tip')
+        .attr('x', best.x)
+        .attr('y', best.y + 3)
+        .attr('text-anchor', best.anchor)
+        .attr('dominant-baseline', 'middle')
+        .style('font-size', (fs - 6) + 'px')
+        .attr('opacity', 0);
+
+    enter.merge(sel)
+        .text(d.n.id)
+        .interrupt('tip')
+        .transition('tip')
+        .duration(210)
+        .ease(d3.easeCubicOut)
+        .attr('x', best.x)
+        .attr('y', best.y)
+        .attr('text-anchor', best.anchor)
+        .attr('opacity', 1)
+        .style('font-size', fs + 'px');
+}
+
+function hideTip() {
+    gLabels.selectAll('text.label')
+        .interrupt()
+        .transition()
+        .duration(180)
+        .style('opacity', 1);
+
+    gHover.selectAll('text.tip')
+        .interrupt('tip')
+        .transition('tip')
+        .duration(140)
+        .ease(d3.easeCubicIn)
+        .attr('opacity', 0)
+        .style('font-size', '16px')
+        .remove();
+}
+
+/* ---------------- 7. 高亮 ---------------- */
+function applyHighlights() {
+    const starts = stationData.filter(d => d.n.id === highlight.a || d.n.id === highlight.b);
+    const mids = stationData.filter(d => highlight.mids.has(d.n.id));
+
+    gHighlight.selectAll('circle.hl-halo')
+        .data(mids, d => d.n.id)
+        .join('circle')
+        .attr('class', 'hl-halo')
+        .attr('cx', d => d.x).attr('cy', d => d.y)
+        .attr('r', 13);
+
+    gHighlight.selectAll('circle.hl-mid')
+        .data(mids, d => d.n.id)
+        .join('circle')
+        .attr('class', 'hl-mid')
+        .attr('cx', d => d.x).attr('cy', d => d.y)
+        .attr('r', 8);
+
+    gHighlight.selectAll('circle.hl-start')
+        .data(starts, d => d.n.id)
+        .join('circle')
+        .attr('class', 'hl-start')
+        .attr('cx', d => d.x).attr('cy', d => d.y)
+        .attr('r', 7.5);
+}
+
+/* ---------------- 8. 寻找中点 ---------------- */
+async function findMidpoint() {
+    const a = document.getElementById('startA').value.trim();
+    const b = document.getElementById('startB').value.trim();
+    const tol = document.getElementById('tolerance').value;
+    const resultEl = document.getElementById('result');
+
+    if (!a || !b) { resultEl.textContent = '请输入两个站名'; return; }
+    if (!MODEL.index.has(a) || !MODEL.index.has(b)) {
+        resultEl.textContent = '站名不在线网中，请检查输入';
+        return;
+    }
+
+    resultEl.textContent = '计算中…';
+    highlight = { a, b, mids: new Set() };
+    applyHighlights();
+
+    try {
+        const res = await fetch(`/api/midpoint?station_a=${encodeURIComponent(a)}&station_b=${encodeURIComponent(b)}&tolerance=${tol}`);
+        const data = await res.json();
+
+        if (data.error) { resultEl.textContent = data.error; return; }
+        if (!data.data || !data.data.length) {
+            resultEl.textContent = '这个时间误差内没有找到合适的中点';
+            return;
+        }
+
+        highlight.mids = new Set(data.data.map(d => d.station));
+        applyHighlights();
+
+        const best = data.data[0];
+        resultEl.innerHTML = `最佳中点 <b>${best.station}</b> · A ${best.time_a} 分钟 / B ${best.time_b} 分钟`;
+    } catch (err) {
+        resultEl.textContent = '请求失败：' + err.message;
+    }
+}
+
+/* ---------------- 9. 图例 ---------------- */
+function renderLegend(routes) {
+    const legend = document.getElementById('legend');
+    legend.innerHTML = '';
+    const seen = new Set();
+
+    routes.forEach(r => {
+        const key = r.color + '|' + r.name;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const div = document.createElement('div');
+        div.innerHTML = `<i style="background:${r.color}"></i>${r.name}`;
+        legend.appendChild(div);
+    });
+}
+
+/* ---------------- 10. 启动 ---------------- */
+const VIEW = { k: 0.95 };   // 1:1 官方坐标，默认 0.82 倍，聚焦主城区
+
+function viewTransform(k, cx, cy) {
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    return d3.zoomIdentity.translate(W / 2 - cx * k, H / 2 - cy * k).scale(k);
+}
+
+function applyInitialView(animate) {
+    const c = MODEL.focus;
+    const t = viewTransform(VIEW.k, c.x, c.y);
+    if (animate) svg.transition().duration(380).call(zoom.transform, t);
+    else svg.call(zoom.transform, t);
+}
+
+function fitAll() {
+    const { box } = MODEL;
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    const k = Math.min(W / (box.x1 - box.x0), H / (box.y1 - box.y0)) * 0.94;
+    const t = viewTransform(k, (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2);
+    svg.transition().duration(420).call(zoom.transform, t);
+}
+
+function start(raw) {
+    MODEL = buildModel(raw);
+    renderLegend(MODEL.routes);
+    render();
+    loadingEl.classList.add('hide');
+    applyInitialView(false);
+    applyUrlParams();
+}
+
+/* 支持通过链接直接带起点，例如 /?a=湘湖&b=西兴&tol=5 */
+function applyUrlParams() {
+    const qs = new URLSearchParams(location.search);
+    const a = qs.get('a'), b = qs.get('b'), tol = qs.get('tol');
+    if (tol !== null) {
+        const el = document.getElementById('tolerance');
+        const v = Math.max(0, Math.min(20, Number(tol) || 0));
+        el.value = v;
+        document.getElementById('tol-val').textContent = v;
+    }
+    if (a) document.getElementById('startA').value = a;
+    if (b) document.getElementById('startB').value = b;
+    if (a && b) findMidpoint();
+}
+
+d3.json(DATA_URL).then(raw => {
+    // 让 loading 先绘制出来，再做较重的布局计算
+    setTimeout(() => {
+        try {
+            start(raw);
+        } catch (e) {
+            loadingEl.textContent = '线网图生成失败：' + e.message;
+            console.error(e);
+        }
+    }, 40);
+}).catch(err => {
+    loadingEl.textContent = '数据加载失败，请确认服务已启动 (/data/hangzhou_subway_drw.json)';
+    console.error(err);
+});
+
+/* ---------------- 11. 交互 ---------------- */
+document.getElementById('tolerance').addEventListener('input', e => {
+    document.getElementById('tol-val').textContent = e.target.value;
+});
+document.getElementById('btn-find').addEventListener('click', findMidpoint);
+document.getElementById('startA').addEventListener('keydown', e => { if (e.key === 'Enter') findMidpoint(); });
+document.getElementById('startB').addEventListener('keydown', e => { if (e.key === 'Enter') findMidpoint(); });
+document.getElementById('btn-reset').addEventListener('click', () => applyInitialView(true));
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+    svg.transition().duration(220).call(zoom.scaleBy, 1.3);
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+    svg.transition().duration(220).call(zoom.scaleBy, 1 / 1.3);
+});
+document.getElementById('btn-fit').addEventListener('click', fitAll);
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 180);
+});
+</script>
 </body>
 </html>

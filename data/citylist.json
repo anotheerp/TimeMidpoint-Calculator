@@ -1,0 +1,294 @@
+{
+  "citylist": [
+    {
+      "spell": "beijing",
+      "adcode": "1100",
+      "cityname": "北京市"
+    },
+    {
+      "spell": "guangzhou",
+      "adcode": "4401",
+      "cityname": "广州市"
+    },
+    {
+      "spell": "shanghai",
+      "adcode": "3100",
+      "cityname": "上海市"
+    },
+    {
+      "spell": "tianjin",
+      "adcode": "1200",
+      "cityname": "天津市"
+    },
+    {
+      "spell": "chongqing",
+      "adcode": "5000",
+      "cityname": "重庆市"
+    },
+    {
+      "spell": "shenyang",
+      "adcode": "2101",
+      "cityname": "沈阳市"
+    },
+    {
+      "spell": "nanjing",
+      "adcode": "3201",
+      "cityname": "南京市"
+    },
+    {
+      "spell": "wuhan",
+      "adcode": "4201",
+      "cityname": "武汉市"
+    },
+    {
+      "spell": "chengdu",
+      "adcode": "5101",
+      "cityname": "成都市"
+    },
+    {
+      "spell": "xian",
+      "adcode": "6101",
+      "cityname": "西安市"
+    },
+    {
+      "spell": "shijiazhuang",
+      "adcode": "1301",
+      "cityname": "石家庄市"
+    },
+    {
+      "spell": "taiyuan",
+      "adcode": "1401",
+      "cityname": "太原市"
+    },
+    {
+      "spell": "zhengzhou",
+      "adcode": "4101",
+      "cityname": "郑州市"
+    },
+    {
+      "spell": "luoyang",
+      "adcode": "4103",
+      "cityname": "洛阳市"
+    },
+    {
+      "spell": "xuchang",
+      "adcode": "4110",
+      "cityname": "许昌市"
+    },
+    {
+      "spell": "ziyang",
+      "adcode": "5120",
+      "cityname": "资阳市"
+    },
+    {
+      "spell": "dalian",
+      "adcode": "2102",
+      "cityname": "大连市"
+    },
+    {
+      "spell": "changchun",
+      "adcode": "2201",
+      "cityname": "长春市"
+    },
+    {
+      "spell": "haerbin",
+      "adcode": "2301",
+      "cityname": "哈尔滨市"
+    },
+    {
+      "spell": "huhehaote",
+      "adcode": "1501",
+      "cityname": "呼和浩特市"
+    },
+    {
+      "spell": "wuxi",
+      "adcode": "3202",
+      "cityname": "无锡市"
+    },
+    {
+      "spell": "suzhou",
+      "adcode": "3205",
+      "cityname": "苏州市"
+    },
+    {
+      "spell": "xuzhou",
+      "adcode": "3203",
+      "cityname": "徐州市"
+    },
+    {
+      "spell": "changzhou",
+      "adcode": "3204",
+      "cityname": "常州市"
+    },
+    {
+      "spell": "jinan",
+      "adcode": "3701",
+      "cityname": "济南市"
+    },
+    {
+      "spell": "qingdao",
+      "adcode": "3702",
+      "cityname": "青岛市"
+    },
+    {
+      "spell": "hefei",
+      "adcode": "3401",
+      "cityname": "合肥市"
+    },
+    {
+      "spell": "wuhu",
+      "adcode": "3402",
+      "cityname": "芜湖市"
+    },
+    {
+      "spell": "chuzhou",
+      "adcode": "3411",
+      "cityname": "滁州市"
+    },
+    {
+      "spell": "hangzhou",
+      "adcode": "3301",
+      "cityname": "杭州市"
+    },
+    {
+      "spell": "ningbo",
+      "adcode": "3302",
+      "cityname": "宁波市"
+    },
+    {
+      "spell": "shaoxing",
+      "adcode": "3306",
+      "cityname": "绍兴市"
+    },
+    {
+      "spell": "wenzhou",
+      "adcode": "3303",
+      "cityname": "温州市"
+    },
+    {
+      "spell": "jinhua",
+      "adcode": "3307",
+      "cityname": "金华市"
+    },
+    {
+      "spell": "taizhou",
+      "adcode": "3310",
+      "cityname": "台州市"
+    },
+    {
+      "spell": "fuzhou",
+      "adcode": "3501",
+      "cityname": "福州市"
+    },
+    {
+      "spell": "xiamen",
+      "adcode": "3502",
+      "cityname": "厦门市"
+    },
+    {
+      "spell": "changsha",
+      "adcode": "4301",
+      "cityname": "长沙市"
+    },
+    {
+      "spell": "xiangtan",
+      "adcode": "4303",
+      "cityname": "湘潭市"
+    },
+    {
+      "spell": "xiangxi",
+      "adcode": "4331",
+      "cityname": "湘西土家族苗族自治州"
+    },
+    {
+      "spell": "shenzhen",
+      "adcode": "4403",
+      "cityname": "深圳市"
+    },
+    {
+      "spell": "foshan",
+      "adcode": "4406",
+      "cityname": "佛山市"
+    },
+    {
+      "spell": "dongguan",
+      "adcode": "4419",
+      "cityname": "东莞市"
+    },
+    {
+      "spell": "nanning",
+      "adcode": "4501",
+      "cityname": "南宁市"
+    },
+    {
+      "spell": "nanchang",
+      "adcode": "3601",
+      "cityname": "南昌市"
+    },
+    {
+      "spell": "guiyang",
+      "adcode": "5201",
+      "cityname": "贵阳市"
+    },
+    {
+      "spell": "kunming",
+      "adcode": "5301",
+      "cityname": "昆明市"
+    },
+    {
+      "spell": "lanzhou",
+      "adcode": "6201",
+      "cityname": "兰州市"
+    },
+    {
+      "spell": "nantong",
+      "adcode": "3206",
+      "cityname": "南通市"
+    },
+    {
+      "spell": "wulumuqi",
+      "adcode": "6501",
+      "cityname": "乌鲁木齐市"
+    },
+    {
+      "spell": "xianggang",
+      "adcode": "8100",
+      "cityname": "香港特别行政区"
+    },
+    {
+      "spell": "aomen",
+      "adcode": "8200",
+      "cityname": "澳门特别行政区"
+    },
+    {
+      "spell": "ezhou",
+      "adcode": "4207",
+      "cityname": "鄂州市"
+    },
+    {
+      "spell": "qingyuan",
+      "adcode": "4418",
+      "cityname": "清远市"
+    },
+    {
+      "spell": "taibei",
+      "adcode": "7101",
+      "cityname": "台北市"
+    },
+    {
+      "spell": "gaoxiong",
+      "adcode": "7102",
+      "cityname": "高雄市"
+    },
+    {
+      "spell": "taoyuan",
+      "adcode": "7106",
+      "cityname": "桃园市"
+    },
+    {
+      "spell": "taizhong",
+      "adcode": "7104",
+      "cityname": "台中市"
+    }
+  ]
+}

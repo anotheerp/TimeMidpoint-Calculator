@@ -17,27 +17,28 @@
     body {
         margin: 0;
         overflow: hidden;
+        position: relative;
         display: flex;
-        flex-direction: column;
+        flex-direction: row-reverse;
         color: var(--ink);
         font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
         background: #eef1f6;
     }
 
-    /* ---------- 顶部控制栏 ---------- */
+    /* ---------- 右侧浮动操作区（无底板，直接浮在地图上） ---------- */
     .topbar {
-        margin: 14px 16px 0;
-        padding: 12px 16px;
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(12px);
-        border-radius: 14px;
-        box-shadow: 0 6px 22px rgba(23, 43, 77, 0.08);
+        position: absolute;
+        right: 30px;
+        top: 28px;
+        width: 124px;
         display: flex;
-        align-items: center;
-        gap: 14px;
-        flex-wrap: wrap;
-        z-index: 5;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        z-index: 6;
+        pointer-events: none;          /* 空白处不挡地图拖动 */
     }
+    .topbar > * { pointer-events: auto; }
     input[type="text"] {
         width: 148px; padding: 9px 12px; font-size: 13px;
         font-family: inherit; color: var(--ink);
@@ -51,12 +52,13 @@
 
     /* ---------- 站点标签（chips） ---------- */
     .tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .tags .hint { font-size: 12px; color: var(--muted); }
+    .tags:empty { display: none; }   /* 没选站时不占位，避免留一段空白 */
     .tag {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 6px 7px 6px 12px; font-size: 13px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 5px 6px 5px 9px; font-size: 12px; font-weight: 600;
         color: #0a6cff; background: #eaf3ff; border-radius: 999px;
-        animation: tagIn .18s ease; white-space: nowrap;
+        animation: tagIn .18s ease; white-space: normal; word-break: break-all;
+        max-width: 100%;
     }
     .tag .rm {
         width: 17px; height: 17px; border: none; border-radius: 50%;
@@ -68,11 +70,11 @@
     @keyframes tagIn { from { transform: scale(.82); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
     /* ---------- 站点搜索建议 ---------- */
-    .station-search-wrap { position: relative; }
-    input#station-search { width: 230px; }
+    .station-search-wrap { position: relative; width: 100%; }
+    input#station-search { width: 100%; height: 38px; }
     .station-suggest {
         position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
-        min-width: 190px; max-height: 280px; overflow-y: auto;
+        width: 100%; max-height: 280px; overflow-y: auto;
         background: #fff; border: 1px solid var(--line); border-radius: 10px;
         box-shadow: 0 10px 30px rgba(23, 43, 77, .14);
         display: none; padding: 4px;
@@ -87,24 +89,36 @@
     .station-suggest .sug.disabled:hover { background: transparent; }
     .station-suggest .sug.empty { color: var(--muted); cursor: default; }
     .station-suggest .sug.empty:hover { background: transparent; }
-    /* ---------- 城市面板（地图左上角） ---------- */
+    /* ---------- 城市选择（地图左上角：无框大字 + 下拉箭头） ---------- */
     .city-panel {
-        position: absolute; left: 14px; top: 14px; z-index: 6;
-        width: 108px;
-        background: rgba(255, 255, 255, .94);
+        position: absolute; left: 12px; top: 8px; z-index: 6;
+        max-width: 300px;
+    }
+    .city-trigger {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 2px 6px; margin-left: -6px;
+        border: none; background: transparent; border-radius: 8px;
+        color: #16181a; font-size: 30px; font-weight: 600; letter-spacing: 1px;
+        font-family: inherit; cursor: pointer; transition: .15s;
+        white-space: nowrap;      /* 城市名横排，不换行 */
+    }
+    #city-current { display: inline-block; white-space: nowrap; }
+    .city-trigger:hover { background: rgba(22, 24, 26, .05); }
+    /* 必须带 #map-container 才能压过 `#map-container svg { width:100% }`，
+       否则这个三角会被撑成父容器的 100% 宽高 */
+    #map-container .city-caret {
+        width: 24px; height: 15px;
+        flex: 0 0 auto; transition: transform .18s;
+    }
+    .city-panel.open .city-caret { transform: rotate(180deg); }
+    .city-list {
+        display: none; margin-top: 6px; min-width: 170px;
+        max-height: 320px; overflow-y: auto; padding: 6px;
+        background: rgba(255, 255, 255, .97);
         backdrop-filter: blur(10px);
-        border: 1px solid var(--line); border-radius: 14px;
-        box-shadow: 0 10px 30px rgba(23, 43, 77, .12);
-        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(23, 43, 77, .16);
     }
-    input.city-search {
-        width: 100%; padding: 10px 12px; font-size: 13px;
-        border: none; outline: none; font-family: inherit; color: var(--ink);
-        background: #f7f9fc; border-radius: 0; cursor: pointer;
-    }
-    .city-panel.open input.city-search { border-bottom: 1px solid var(--line); }
-    input.city-search:focus { background: #fff; box-shadow: none; }
-    .city-list { display: none; overflow-y: auto; max-height: 340px; padding: 4px 8px 10px; }
     .city-panel.open .city-list { display: block; }
     .city-group-title {
         font-size: 11px; font-weight: 700; color: #9aa7ba;
@@ -119,7 +133,7 @@
     .city-empty { padding: 16px 6px; font-size: 12px; color: var(--muted); text-align: center; }
 
     .btn {
-        padding: 9px 18px; font-size: 13px; font-weight: 600; font-family: inherit;
+        padding: 9px 8px; font-size: 12px; font-weight: 600; font-family: inherit;
         color: #fff; cursor: pointer; border: none; border-radius: 9px;
         background: linear-gradient(135deg, #0a84ff, #0060df);
         box-shadow: 0 4px 12px rgba(10, 132, 255, .28);
@@ -129,7 +143,7 @@
     .btn:active { transform: translateY(0); }
 
     .btn-icon {
-        width: 38px; height: 38px; padding: 0;
+        width: 100%; height: 38px; padding: 0;
         display: inline-flex; align-items: center; justify-content: center;
         border: 1px solid var(--line); border-radius: 9px;
         background: #fff; color: #7a869a; cursor: pointer; transition: .18s;
@@ -137,15 +151,72 @@
     .btn-icon:hover { color: #ff3b30; border-color: #ffc9c5; background: #fff6f5; transform: translateY(-1px); }
     .btn-icon:active { transform: translateY(0); }
 
-    #result { font-size: 12.5px; color: var(--muted); }
+    /* 中点模式切换按钮：绝对中点时用暖色，与默认的「均衡中点」区分 */
+    .btn-mode {
+        width: 100%; height: 38px; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-family: inherit;
+        color: #0060df; cursor: pointer; border-radius: 9px;
+        border: 1px solid #bcd9ff; background: #f2f7ff;
+        box-shadow: 0 2px 8px rgba(10, 132, 255, .12);
+        transition: .18s;
+    }
+    .btn-mode:hover { filter: brightness(.98); transform: translateY(-1px); }
+    .btn-mode:active { transform: translateY(0); }
+    .btn-mode.absolute {
+        color: #c2410c; border-color: #ffd3ac; background: #fff4e8;
+        box-shadow: 0 2px 8px rgba(255, 153, 51, .18);
+    }
+    /* 两种模式各用一个图标 */
+    .btn-mode .icon-abs { display: none; }
+    .btn-mode.absolute .icon-fast { display: none; }
+    .btn-mode.absolute .icon-abs { display: block; }
+
+    /* 图标按钮 + 下方四字说明 */
+    .btn-item { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+    .btn-item .cap {
+        font-size: 10px; color: #6f7d90; text-align: center; letter-spacing: .6px;
+        text-shadow: 0 0 4px #fff, 0 0 8px #fff;   /* 浮在地图上时保证可读 */
+    }
+
+    /* 结果区：浮在地图上，用半透明白底保证可读性 */
+    #result {
+        font-size: 12.5px; color: var(--muted); line-height: 1.55; word-break: break-word;
+        background: rgba(255, 255, 255, .92);
+        border-radius: 9px; padding: 8px 9px;
+        box-shadow: 0 4px 14px rgba(23, 43, 77, .10);
+    }
+    #result:empty { display: none; }
     #result b { color: #0a6cff; }
+    #result .res-head {
+        font-size: 11px; color: #9aa7ba; letter-spacing: .2px;
+        padding-bottom: 6px; border-bottom: 1px dashed var(--line);
+    }
+    #result .res-best {
+        font-size: 17px; font-weight: 700; color: #0a6cff;
+        line-height: 1.3; margin: 6px 0 6px;
+    }
+    #result .res-times { display: flex; flex-direction: column; gap: 2px; }
+    #result .res-times .rt {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 6px; font-size: 12px;
+    }
+    #result .res-times .rt i {
+        font-style: normal; color: #7a869a; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #result .res-times .rt b { color: #1b2431; font-weight: 600; flex: 0 0 auto; }
+    #result .res-times .rt b em {
+        font-style: normal; font-weight: 400; font-size: 10px; color: #9aa7ba; margin-left: 1px;
+    }
 
     /* ---------- 地图画布 ---------- */
     #map-container {
         position: relative;
         flex: 1 1 auto;
+        min-width: 0;
         min-height: 0;
-        margin: 14px 16px 16px;
+        margin: 14px 16px 18px 16px;
         background: #fff;
         border-radius: 16px;
         box-shadow: 0 10px 30px rgba(23, 43, 77, .09);
@@ -157,13 +228,22 @@
     .route { fill: none; transition: stroke .32s ease; }
     .transfer { pointer-events: none; transform-box: fill-box; transform-origin: center; transition: transform .22s cubic-bezier(.34, 1.5, .64, 1); }
     .transfer.hovered { transform: scale(2.76); }
-    .station { fill: #fff; pointer-events: none; }
-    .hl-start { fill: #0a84ff; stroke: #fff; stroke-width: 2.6px; }
+    .station { fill: #000; pointer-events: none; }
+    .hl-start {
+        fill: #000; stroke: #fff; stroke-linejoin: round; pointer-events: none;
+        transform-box: fill-box; transform-origin: center;
+        animation: star-in .36s cubic-bezier(.34, 1.56, .64, 1) both;
+    }
+    @keyframes star-in {
+        from { transform: scale(.1) rotate(-60deg); opacity: 0; }
+        60% { opacity: 1; }
+        to { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
     .hl-mid { stroke: #fff; stroke-width: 2px; }
 
     .label {
         fill: #46546a; pointer-events: none; user-select: none;
-        paint-order: stroke; stroke: #fff; stroke-linejoin: round;
+        stroke: none;          /* 不要白色描边 */
     }
     .label.interchange { fill: #1f2c3d; font-weight: 700; }
     .tip {
@@ -173,7 +253,7 @@
 
     /* ---------- 覆盖层 ---------- */
     .legend {
-        position: absolute; right: 14px; bottom: 14px;
+        position: absolute; left: 14px; bottom: 14px;
         background: rgba(255, 255, 255, .93);
         backdrop-filter: blur(8px);
         border: 1px solid var(--line); border-radius: 12px;
@@ -195,7 +275,7 @@
     .loading.hide { opacity: 0; pointer-events: none; }
 
     .zoombox {
-        position: absolute; right: 14px; top: 14px;
+        position: absolute; right: 14px; bottom: 14px;
         display: flex; flex-direction: column;
         border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
         background: rgba(255, 255, 255, .94);
@@ -213,12 +293,31 @@
 <body>
 
 <div class="topbar">
+    <div class="btn-item">
+    <button class="btn-mode" id="btn-mode" title="切换中点算法">
+        <svg class="icon-fast" viewBox="0 0 1024 1024" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M512 53.333333c66.581333 0 129.856 14.186667 186.944 39.701334 1.92 0.704 3.754667 1.536 5.504 2.517333l2.837333 1.301333-0.213333 0.341334a35.285333 35.285333 0 1 1-33.237333 61.824l-0.042667 0.106666a385.664 385.664 0 0 0-126.506667-33.642666v57.216c0 12.992-10.538667 23.530667-23.530666 23.530666H500.266667a23.530667 23.530667 0 0 1-23.530667-23.530666V125.482667a386.346667 386.346667 0 0 0-213.056 88.256l40.448 40.469333c9.173333 9.173333 9.173333 24.064 0 33.258667l-16.64 16.64c-9.173333 9.173333-24.085333 9.173333-33.28 0l-40.448-40.448a386.346667 386.346667 0 0 0-88.256 213.056h57.216c12.992 0 23.530667 10.538667 23.530667 23.530666v23.509334c0 13.013333-10.538667 23.530667-23.530667 23.530666H125.482667a386.346667 386.346667 0 0 0 88.256 213.056l40.469333-40.448c9.173333-9.173333 24.064-9.173333 33.258667 0l16.64 16.64c9.173333 9.173333 9.173333 24.085333 0 33.28l-40.448 40.448A386.538667 386.538667 0 0 0 512 900.096c94.464 0 181.034667-33.749333 248.32-89.813333l-40.426667-40.490667a23.530667 23.530667 0 0 1 0-33.258667l16.64-16.64c9.173333-9.173333 24.085333-9.173333 33.28 0l40.448 40.448a386.346667 386.346667 0 0 0 88.256-213.056h-57.216a23.530667 23.530667 0 0 1-23.530666-23.530666V500.266667c0-13.013333 10.538667-23.530667 23.530666-23.530667h57.216a385.706667 385.706667 0 0 0-30.208-118.805333l-4.117333-9.173334a36.096 36.096 0 0 1-3.605333-15.701333 35.285333 35.285333 0 0 1 64.853333-19.285333l0.213333-0.149334 4.693334 10.090667A457.024 457.024 0 0 1 970.666667 512c0 253.312-205.354667 458.666667-458.666667 458.666667S53.333333 765.312 53.333333 512 258.688 53.333333 512 53.333333z m317.674667 141.141334a42.666667 42.666667 0 0 1 0 60.330666L575.893333 508.586667 576 512a64 64 0 0 1-60.245333 63.893333L512 576a64 64 0 0 1 0-128l3.690667 0.106667 253.653333-253.653334a42.666667 42.666667 0 0 1 60.330667 0z"></path>
+        </svg>
+        <svg class="icon-abs" viewBox="0 0 1024 1024" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M346.709333 426.666667a170.965333 170.965333 0 0 0 0 85.333333H85.333333v-85.333333h261.376z m330.581334 0H938.666667v85.333333h-261.376a170.965333 170.965333 0 0 0 0-85.333333zM512 597.333333a128 128 0 1 1 0-256 128 128 0 0 1 0 256z m271.573333 124.373334l54.314667 54.314666a8.533333 8.533333 0 0 1 0 12.074667l-48.298667 48.256a8.533333 8.533333 0 0 1-12.074666 0l-54.272-54.314667-34.389334 34.389334a8.533333 8.533333 0 0 1-14.336-4.138667l-38.741333-167.765333a8.533333 8.533333 0 0 1 10.24-10.24l167.808 38.698666a8.533333 8.533333 0 0 1 4.096 14.378667l-34.346667 34.346667z"></path>
+        </svg>
+    </button>
+        <span class="cap" id="mode-cap">最快中点</span>
+    </div>
     <div class="tags" id="tags"></div>
     <div class="station-search-wrap">
-        <input type="text" id="station-search" placeholder="点击地图选站，或在此搜索…" />
+        <input type="text" id="station-search" placeholder="选择地铁站…" />
         <div class="station-suggest" id="station-suggest"></div>
     </div>
-    <button class="btn" id="btn-find">寻找中点</button>
+    <div class="btn-item">
+    <button class="btn-icon" id="btn-find" title="寻找中点" aria-label="寻找中点">
+        <svg viewBox="0 0 1024 1024" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M512 928A416 416 0 1 1 928 512 416 416 0 0 1 512 928z m0-768A352 352 0 1 0 864 512 352 352 0 0 0 512 160z m-52.288 507.136a29.12 29.12 0 0 1-16.128 4.864 26.496 26.496 0 0 1-27.584-25.6V377.6a24.192 24.192 0 0 1 5.248-14.912 29.12 29.12 0 0 1 38.4-5.568l200.96 134.4a25.216 25.216 0 0 1 6.4 5.632 24.064 24.064 0 0 1-6.4 35.392z"></path>
+        </svg>
+    </button>
+        <span class="cap">寻找中点</span>
+    </div>
+    <div class="btn-item">
     <button class="btn-icon" id="btn-clear" title="清除所选站点" aria-label="清除所选站点">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
@@ -226,13 +325,20 @@
             <path d="m5 11 9 9"/>
         </svg>
     </button>
+        <span class="cap">清除站点</span>
+    </div>
     <div id="result"></div>
 </div>
 
 <div id="map-container">
     <div class="loading" id="loading">正在生成线网图…</div>
     <div class="city-panel" id="city-panel">
-        <input type="text" id="city-search" class="city-search" placeholder="搜索城市…" />
+        <button class="city-trigger" id="city-trigger" title="选择城市">
+            <span id="city-current">杭州</span>
+            <svg class="city-caret" viewBox="0 0 14 9" width="24" height="15" aria-hidden="true">
+                <path d="M0 0h14L7 9z" fill="currentColor"></path>
+            </svg>
+        </button>
         <div class="city-list" id="city-list"></div>
     </div>
     <div class="legend" id="legend"></div>
@@ -276,6 +382,24 @@ let labelBoxes = [];       // 常驻站名占位，供悬停站名避让
 const MAX_STATIONS = 5;    // 最多添加 5 个站点
 let selected = [];         // 已选站点名（按添加顺序）
 let midResults = [];       // 后端返回的中点结果 [{station, times, diff, total_time, coords}]
+let midMode = 'balanced';  // 中点算法模式：balanced=均衡中点 / absolute=绝对中点
+
+const MODE_TEXT = {
+    balanced: { btn: '模式：最快中点', label: '最快中点' },
+    absolute: { btn: '模式：绝对中点', label: '绝对中点' },
+};
+
+/* 同步模式按钮的配色与悬停提示（按钮本身是图标，靠颜色区分两种模式） */
+function renderModeButton() {
+    const btn = document.getElementById('btn-mode');
+    btn.classList.toggle('absolute', midMode === 'absolute');
+    const cur = MODE_TEXT[midMode].label;
+    const next = MODE_TEXT[midMode === 'absolute' ? 'balanced' : 'absolute'].label;
+    btn.title = `当前：${cur}　点击切换为：${next}`;
+    btn.setAttribute('aria-label', btn.title);
+    const cap = document.getElementById('mode-cap');
+    if (cap) cap.textContent = cur;   // 按钮下方四字说明随模式变化
+}
 
 /* ---------------- 1. 构建模型（高德绘制数据：已排版坐标 + 线路路径点） ---------------- */
 function buildModel(raw) {
@@ -390,7 +514,7 @@ function buildLabels(stations, showAll) {
 }
 
 /* ---------------- 6. 渲染（1:1 官方坐标，靠 zoom 平移缩放） ---------------- */
-const ST_R = 6;          // 普通站半径（官方 3px，这里放大一倍便于点击）
+const ST_R = 4.8;        // 普通站半径（原 6，按 0.8 倍缩小）
 const TR_ICON = 18;      // 换乘站图标尺寸（官方 18px）
 
 function render() {
@@ -430,9 +554,8 @@ function render() {
         .attr('cx', d => d.x)
         .attr('cy', d => d.y)
         .attr('r', ST_R)
-        .attr('fill', '#fff')
-        .attr('stroke', '#000')
-        .attr('stroke-width', 1.4);
+        .attr('fill', '#000')
+        .attr('stroke', 'none');
 
     // 换乘站用官方图标
     gStations.selectAll('image.transfer')
@@ -604,25 +727,26 @@ function applyRouteFocus() {
         .attr('stroke', d => (focus ? DIM_ROUTE : d.color));
 }
 
-/* 中点配色：PANTONE 色卡顺序（红→橙→黄→绿→青→深蓝→紫，不含 183 C） */
-const MID_COLORS = ['#ff3445', '#ff8902', '#f4d717', '#00ba72', '#00c2df', '#00418d', '#602879'];
+/* 中点配色色卡：红→青渐变，按顺序取色 */
+const MID_COLORS = ['#ff6061', '#ffab39', '#ffd224', '#e6ea48', '#37d86f', '#35cdd6'];
+
+/* 已选站点图标：1024 视口的圆角五角星，缩放后以站点坐标为中心绘制 */
+const PIN_VIEWBOX = 1024;
+const PIN_SIZE = 58 * 0.8;              // 图标整体显示尺寸（px）
+const PIN_SCALE = PIN_SIZE / PIN_VIEWBOX;
+const PIN_PATH = 'M313.991837 914.285714c-20.37551 0-40.228571-6.269388-56.946939-18.808163-30.302041-21.942857-44.930612-58.514286-38.661225-95.085714l24.032654-141.061225c3.134694-18.285714-3.134694-36.571429-16.195919-49.110204L123.297959 509.910204c-26.644898-26.122449-36.04898-64.261224-24.555102-99.787755 11.493878-35.526531 41.795918-61.126531 78.889796-66.35102l141.583674-20.375511c18.285714-2.612245 33.959184-14.106122 41.795918-30.30204l63.216326-128.522449C440.946939 130.612245 474.383673 109.714286 512 109.714286s71.053061 20.897959 87.24898 54.334694L662.987755 292.571429c8.359184 16.195918 24.032653 27.689796 41.795918 30.30204l141.583674 20.375511c37.093878 5.22449 67.395918 30.82449 78.889796 66.35102 11.493878 35.526531 2.089796 73.665306-24.555102 99.787755l-102.4 99.787755c-13.061224 12.538776-19.330612 31.346939-16.195919 49.110204l24.032654 141.061225c6.269388 37.093878-8.359184 73.142857-38.661225 95.085714-30.302041 21.942857-69.485714 24.555102-102.4 7.314286L538.122449 836.440816c-16.195918-8.359184-35.526531-8.359184-51.722449 0l-126.955102 66.87347c-14.628571 7.314286-30.302041 10.971429-45.453061 10.971428z';
 
 function applyHighlights() {
     const sels = stationData.filter(d => selected.includes(d.n.id));
 
-    // 中点：按「平均到达时间」映射色卡颜色(近→远) 与 大小(大→小)
+    // 中点：后端已按当前模式的优先级排序（均衡=总耗时最短优先，绝对=时间差最小优先），
+    // 名次越靠前颜色越红、圆点越大；越靠后越偏青、越小
     const coordsOf = new Map(stationData.map(d => [d.n.id, d]));
-    const mids = midResults
-        .map(r => ({ ...r, avg: r.total_time / (r.times ? r.times.length : 1) }))
-        .filter(r => coordsOf.has(r.station));
+    const mids = midResults.filter(r => coordsOf.has(r.station));
 
-    const avgs = mids.map(r => r.avg);
-    const minAvg = avgs.length ? Math.min(...avgs) : 0;
-    const maxAvg = avgs.length ? Math.max(...avgs) : 0;
-    const span = (maxAvg - minAvg) || 1;
-
-    const midData = mids.map(r => {
-        const t = Math.min(1, Math.max(0, (r.avg - minAvg) / span)); // 0=最近 1=最远
+    const n = mids.length;
+    const midData = mids.map((r, i) => {
+        const t = n > 1 ? i / (n - 1) : 0;   // 0=最优 1=最末
         const c = coordsOf.get(r.station);
         return {
             station: r.station,
@@ -643,12 +767,24 @@ function applyHighlights() {
         .attr('stroke', '#fff')
         .attr('stroke-width', 2);
 
-    gHighlight.selectAll('circle.hl-start')
+    // 已选站点：五角星（外层 g 定位，内层 path 负责入场动画）
+    gHighlight.selectAll('g.hl-pin')
         .data(sels, d => d.n.id)
-        .join('circle')
-        .attr('class', 'hl-start')
-        .attr('cx', d => d.x).attr('cy', d => d.y)
-        .attr('r', 7.5);
+        .join(
+            enter => {
+                const g = enter.append('g')
+                    .attr('class', 'hl-pin')
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                g.append('g')
+                    .attr('transform', `scale(${PIN_SCALE}) translate(${-PIN_VIEWBOX / 2},${-PIN_VIEWBOX / 2})`)
+                    .append('path')
+                    .attr('class', 'hl-start')
+                    .attr('d', PIN_PATH)
+                    .attr('stroke-width', 2 / PIN_SCALE);
+                return g;
+            },
+            update => update.attr('transform', d => `translate(${d.x},${d.y})`)
+        );
 
     applyRouteFocus();
 }
@@ -668,6 +804,7 @@ async function findMidpoint() {
         const qs = new URLSearchParams({
             city: currentCity,
             stations: selected.join(','),
+            mode: midMode,
         });
         const res = await fetch('/api/midpoint?' + qs.toString());
         const data = await res.json();
@@ -689,8 +826,17 @@ async function findMidpoint() {
         applyHighlights();
 
         const best = data.data[0];
-        const times = best.times.join('/');
-        resultEl.innerHTML = `最佳中点 <b>${best.station}</b> · 到各站 ${times} 分钟 · 时间差 ${best.diff} 分钟`;
+        const label = MODE_TEXT[data.mode === 'absolute' ? 'absolute' : 'balanced'].label;
+        const head = data.mode === 'absolute'
+            ? `${label} · 时间差 ${best.diff} 分 · 共 ${best.total_time} 分`
+            : `${label} · 时间差 ${best.diff} 分`;
+        // times 与所选站点一一对应，逐行显示「站名 —— 到中点的分钟数」
+        const rows = best.times.map((t, i) =>
+            `<span class="rt"><i>${selected[i] || '站点'}</i><b>${t}<em>分</em></b></span>`
+        ).join('');
+        resultEl.innerHTML = `<div class="res-head">${head}</div>` +
+            `<div class="res-best">${best.station}</div>` +
+            `<div class="res-times">${rows}</div>`;
     } catch (err) {
         resultEl.textContent = '请求失败：' + err.message;
     }
@@ -700,13 +846,7 @@ async function findMidpoint() {
 function renderTags() {
     const tagsEl = document.getElementById('tags');
     tagsEl.innerHTML = '';
-    if (!selected.length) {
-        const hint = document.createElement('span');
-        hint.className = 'hint';
-        hint.textContent = '点击地图选站';
-        tagsEl.appendChild(hint);
-        return;
-    }
+    if (!selected.length) return;
     selected.forEach(name => {
         const tag = document.createElement('span');
         tag.className = 'tag';
@@ -723,7 +863,7 @@ function renderTags() {
     });
 }
 
-function addStation(name) {
+function addStation(name, focus = false) {
     if (!name) return;
     if (!MODEL || !MODEL.index.has(name)) return;
     if (selected.includes(name)) return;               // 去重
@@ -738,6 +878,19 @@ function addStation(name) {
     document.getElementById('station-search').value = '';
     hideSuggest();
     document.getElementById('result').textContent = '';
+    if (focus) focusStation(name);
+}
+
+/* 把地图平滑移到某个站点，并保证有一定放大倍数 */
+function focusStation(name) {
+    if (!MODEL) return;
+    const d = stationData.find(s => s.n.id === name);
+    if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') return;
+    const k = Math.max(zoom.scale(), 1.5);
+    svg.transition()
+        .duration(700)
+        .ease(d3.easeCubicOut)
+        .call(zoom.transform, viewTransform(k, d.x, d.y));
 }
 
 function removeStation(name) {
@@ -776,7 +929,7 @@ function showSuggest(kw) {
             const d = document.createElement('div');
             d.className = 'sug' + (full || atMax ? ' disabled' : '');
             d.textContent = m.n.id + (full ? ' · 已添加' : (atMax ? ' · 已满' : ''));
-            if (!full && !atMax) d.addEventListener('click', () => addStation(m.n.id));
+            if (!full && !atMax) d.addEventListener('click', () => addStation(m.n.id, true));
             el.appendChild(d);
         });
     }
@@ -852,7 +1005,9 @@ async function loadCity(name) {
     const city = CITIES.find(c => c.name === name);
     const label = city ? city.label : name;
     document.title = label + '地铁 · 寻找完美中点';
-    renderCityList(document.getElementById('city-search').value);   // 刷新左侧列表的高亮
+    const cur = document.getElementById('city-current');
+    if (cur) cur.textContent = label;      // 左上角显示当前城市名
+    renderCityList('');                    // 刷新列表里的高亮项
 
     // 清空上次的结果、站点选择与输入
     selected = [];
@@ -907,9 +1062,6 @@ function collapseCityPanel() {
 function selectCity(name) {
     loadCity(name);
     collapseCityPanel();
-    const search = document.getElementById('city-search');
-    search.value = '';
-    renderCityList('');
 }
 
 function renderCityList(filter) {
@@ -968,17 +1120,23 @@ async function initCities() {
     const urlCity = qs.get('city');
     const startCity = (urlCity && CITIES.some(c => c.name === urlCity))
         ? urlCity
-        : (CITIES[0] ? CITIES[0].name : 'hangzhou');
+        : (CITIES.some(c => c.name === 'hangzhou') ? 'hangzhou'
+            : (CITIES[0] ? CITIES[0].name : 'hangzhou'));
     loadCity(startCity);
 }
 
 initCities();
+renderModeButton();
 
 /* ---------------- 11. 交互 ---------------- */
-document.getElementById('city-search').addEventListener('click', expandCityPanel);
-document.getElementById('city-search').addEventListener('input', e => {
-    expandCityPanel();
-    renderCityList(e.target.value);
+document.getElementById('city-trigger').addEventListener('click', () => {
+    const panel = document.getElementById('city-panel');
+    if (panel.classList.contains('open')) {
+        collapseCityPanel();
+    } else {
+        renderCityList('');
+        expandCityPanel();
+    }
 });
 document.addEventListener('click', e => {
     const panel = document.getElementById('city-panel');
@@ -995,9 +1153,14 @@ document.getElementById('station-search').addEventListener('keydown', e => {
     const kw = e.target.value.trim();
     if (!kw) return;
     const match = stationData.find(d => d.n.id.includes(kw) && !selected.includes(d.n.id));
-    if (match) addStation(match.n.id);
+    if (match) addStation(match.n.id, true);
 });
 document.getElementById('btn-find').addEventListener('click', findMidpoint);
+document.getElementById('btn-mode').addEventListener('click', () => {
+    midMode = midMode === 'absolute' ? 'balanced' : 'absolute';
+    renderModeButton();
+    if (selected.length >= 2) findMidpoint();   // 已选好站点则立即用新模式重算
+});
 document.getElementById('btn-clear').addEventListener('click', clearAll);
 document.getElementById('btn-reset').addEventListener('click', () => applyInitialView(true));
 document.getElementById('btn-zoom-in').addEventListener('click', () => {

@@ -3,7 +3,7 @@ import networkx as nx
 import json
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
@@ -31,6 +31,13 @@ EDGE_WEIGHT = 3  # 相邻两站之间默认按 3 分钟计算（无真实数据�
 FUZZY_TOLERANCE = 5  # 分钟：均衡模式下允许与「绝对均衡」的时间差上限，用于纳入模糊中点
 ABSOLUTE_TOLERANCE = 3.0  # 分钟：绝对中点模式下允许的时间差（约一站的误差）
 DEFAULT_TRANSFER = 4.0  # 分钟：拿到真实数据后，缺失换乘记录的站点默认换乘耗时
+
+# 首页与城市清单不允许浏览器缓存，保证刷新后拿到的是最新代码
+NO_CACHE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
 
 
 def load_cities():
@@ -123,15 +130,19 @@ build_all_graphs()
 def serve_webpage():
     try:
         with open(os.path.join(BASE_DIR, "index.html"), "r", encoding="utf-8") as f:
-            return f.read()
+            return HTMLResponse(content=f.read(), headers=NO_CACHE)
     except FileNotFoundError:
-        return "<h1>找不到 index.html，请确认文件与 main.py 在同一目录下！</h1>"
+        return HTMLResponse(
+            content="<h1>找不到 index.html，请确认文件与 main.py 在同一目录下！</h1>",
+            status_code=500,
+            headers=NO_CACHE,
+        )
 
 
 @app.get("/api/cities")
 def list_cities():
     """返回城市清单，供前端下拉框使用。"""
-    return {"status": "success", "data": CITIES}
+    return JSONResponse({"status": "success", "data": CITIES}, headers=NO_CACHE)
 
 
 @app.get("/api/midpoint")

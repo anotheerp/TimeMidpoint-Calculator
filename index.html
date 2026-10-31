@@ -22,7 +22,8 @@
         flex-direction: row-reverse;
         color: var(--ink);
         font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
-        background: #eef1f6;
+        /* 纸张已经画进地图里（跟着缩放走），这一层只是拖出纸边时的兜底色 */
+        background: #f6f4ef;
     }
 
     /* ---------- 右侧浮动操作区（无底板，直接浮在地图上） ---------- */
@@ -226,14 +227,15 @@
         flex: 1 1 auto;
         min-width: 0;
         min-height: 0;
-        margin: 14px 16px 18px 16px;
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(23, 43, 77, .09);
+        margin: 0;                 /* 整屏就是那张纸，纸随线网一起缩放平移 */
+        background: transparent;
         overflow: hidden;
     }
     #map-container svg { display: block; width: 100%; height: 100%; cursor: grab; }
     #map-container svg:active { cursor: grabbing; }
+
+    /* 纸张底纹画在 svg 里，跟着 zoom 一起放大缩小 */
+    .paper { pointer-events: none; }
 
     .route { fill: none; transition: stroke .32s ease; }
     .transfer { pointer-events: none; transform-box: fill-box; transform-origin: center; transition: transform .22s cubic-bezier(.34, 1.5, .64, 1); }
@@ -280,8 +282,8 @@
 
     .loading {
         position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-        background: rgba(255, 255, 255, .86); font-size: 13px; color: var(--muted);
-        transition: opacity .35s; z-index: 3;
+        background: rgba(255, 255, 255, .55); font-size: 13px; color: var(--muted);
+        letter-spacing: .5px; transition: opacity .35s; z-index: 3;
     }
     .loading.hide { opacity: 0; pointer-events: none; }
 
@@ -377,6 +379,7 @@ let CITIES = [];                // 城市清单 [{code, name, label}]
 
 const svg = d3.select(container).insert('svg', ':first-child');
 const gRoot = svg.append('g');
+const gPaper = gRoot.append('g').attr('class', 'paper-layer');   // 纸张底纹（最底层）
 const gRoutes = gRoot.append('g').attr('class', 'routes');
 const gStations = gRoot.append('g').attr('class', 'stations');
 const gHit = gRoot.append('g').attr('class', 'hit-area');
@@ -542,13 +545,27 @@ function gradientLineColors(lines, palette) {
     return keys.map(k => byKey.get(k));
 }
 
+/* 直接用数据里的官方色（香港这种官方配色本身就是地图标识的城市用这套） */
+function officialLineColors(lines) {
+    return lines.map(line => {
+        const hex = line.cl ? '#' + String(line.cl).replace('#', '').trim() : '';
+        return /^#[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : LINE_GRAY;
+    });
+}
+
+/* 官方色不参与色带分配的城市 */
+const OFFICIAL_COLOR_CITIES = new Set(['xianggang']);
+
 /* ---------------- 1. 构建模型（高德绘制数据：已排版坐标 + 线路路径点） ---------------- */
 function buildModel(raw) {
     const routes = [];
     const byName = new Map();
-    // 几条线路就把渐变色带平均切成几段，一条一段
-    const palette = gradientPalette(countLines(raw.l));
-    const lineColors = gradientLineColors(raw.l, palette);
+    // 默认几条线路就把渐变色带平均切成几段、一条一段；
+    // 香港直接用官方色，保持和真实线路图一致
+    const official = OFFICIAL_COLOR_CITIES.has(currentCity);
+    const lineColors = official
+        ? officialLineColors(raw.l)
+        : gradientLineColors(raw.l, gradientPalette(countLines(raw.l)));
 
     raw.l.forEach((line, li) => {
         const color = lineColors[li];
@@ -816,11 +833,36 @@ const TR_ICON = 18;      // 换乘站图标尺寸（官方 18px）
    取 8.8：覆盖到 8 的间距（还留 0.8 的重叠），整条线粗细约 15px */
 const ROUTE_STROKE = 8.8;
 
+/* --- 纸张底纹：画在 svg 里、跟着 zoom 一起缩放，线网原样压在上面 --- */
+const PAPER_IMG = '/data/paper.png';
+const PAPER_PAD = 1.35;   // 比线网包围盒四周多铺一圈，拖动时不至于立刻露出纸边
+
+function renderPaper() {
+    const { box } = MODEL;
+    const cx = (box.x0 + box.x1) / 2;
+    const cy = (box.y0 + box.y1) / 2;
+    const w = Math.max(1, box.x1 - box.x0) * PAPER_PAD;
+    const h = Math.max(1, box.y1 - box.y0) * PAPER_PAD;
+
+    gPaper.selectAll('image.paper')
+        .data([0])
+        .join('image')
+        .attr('class', 'paper')
+        .attr('href', PAPER_IMG)
+        .attr('x', cx - w / 2)
+        .attr('y', cy - h / 2)
+        .attr('width', w)
+        .attr('height', h)
+        .attr('preserveAspectRatio', 'xMidYMid slice');   // 等比铺满，不拉变形
+}
+
 function render() {
     if (!MODEL) return;
     const W = container.clientWidth;
     const H = container.clientHeight;
     svg.attr('width', W).attr('height', H);
+
+    renderPaper();
 
     const { nodes, routes } = MODEL;
 
